@@ -117,3 +117,17 @@ func (dt *DependencyTrack) AddTagsToProject(ctx context.Context, projectName, pr
 
 	return nil
 }
+
+func (dt *DependencyTrack) IsLatest(ctx context.Context, projectName, projectVersion string, tags []string) bool {
+	log.Printf("Checking if project is latest. project %s:%s tags %v", projectName, projectVersion, tags)
+
+	project, err := dt.Client.Project.Latest(ctx, projectName)
+	if err != nil {
+		return false
+	}
+	if project.Version != projectVersion {
+		log.Printf("Project is not latest. project %s:%s latest %s", projectName, projectVersion, project.Version)
+		return false
+	}
+	return true
+}
