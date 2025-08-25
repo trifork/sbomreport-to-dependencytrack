@@ -11,8 +11,9 @@ import (
 )
 
 type DependencyTrackClient interface {
-	UploadBOM(ctx context.Context, projectName, projectVersion string, parentName string, parentVersion string, bom []byte) error
-	AddTagsToProject(ctx context.Context, projectName, projectVersion string, tags []string) error
+	UploadBOM(ctx context.Context, projectName, projectVersion string, parentName string, parentVersion string, bom []byte, isLatest bool, group string, description string) error
+	AddTagsToProject(ctx context.Context, projectName, projectVersion string, tags []string, namespace string, serviceName string) error
+	IsLatest(ctx context.Context, projectName, projectVersion string, updateTimestamp int64) bool
 }
 
 type DependencyTrack struct {
@@ -35,16 +36,40 @@ func New(baseURL, apiKey string, dtrackClientTimeout, sbomUploadTimeout, sbomUpl
 	}, nil
 }
 
-func (dt *DependencyTrack) UploadBOM(ctx context.Context, projectName, projectVersion string, parentName string, parentVersion string, bom []byte) error {
+func (dt *DependencyTrack) UploadBOM(ctx context.Context, projectName, projectVersion string, parentName string, parentVersion string, bom []byte, isLatest bool, namespace string, serviceName string) error {
 	log.Printf("Uploading BOM: project %s:%s", projectName, projectVersion)
 
+	// Ensure project exists with correct group and description
+	project, err := dt.Client.Project.Lookup(ctx, projectName, projectVersion)
+	if err != nil {
+		// Project does not exist, create it
+		project := dtrack.Project{
+			Name:    projectName,
+			Version: projectVersion,
+			Active:  true,
+		}
+		_, err = dt.Client.Project.Create(ctx, project)
+		if err != nil {
+			return err
+		}
+		// Re-lookup to get the created project's UUID and state
+		project, err = dt.Client.Project.Lookup(ctx, projectName, projectVersion)
+		if err != nil {
+			return err
+		}
+	}
+
+	// log project to be uploaded
+	log.Printf("Project to be uploaded: %s:%s UUID: %s", projectName, projectVersion, project.UUID)
+
 	uploadToken, err := dt.Client.BOM.Upload(ctx, dtrack.BOMUploadRequest{
-		ProjectName:    projectName,
+		ProjectUUID:    &project.UUID,
 		ProjectVersion: projectVersion,
 		ParentName:     parentName,
 		ParentVersion:  parentVersion,
 		AutoCreate:     true,
 		BOM:            base64.StdEncoding.EncodeToString(bom),
+		IsLatest:       &isLatest,
 	})
 	if err != nil {
 		return err
@@ -67,7 +92,7 @@ func (dt *DependencyTrack) UploadBOM(ctx context.Context, projectName, projectVe
 		for {
 			select {
 			case <-ticker.C:
-				processing, err := dt.Client.BOM.IsBeingProcessed(ctx, uploadToken)
+				processing, err := dt.Client.Event.IsBeingProcessed(ctx, dtrack.EventToken(uploadToken))
 				if err != nil {
 					errChan <- err
 					return
@@ -98,8 +123,16 @@ func (dt *DependencyTrack) UploadBOM(ctx context.Context, projectName, projectVe
 	return nil
 }
 
-func (dt *DependencyTrack) AddTagsToProject(ctx context.Context, projectName, projectVersion string, tags []string) error {
-	log.Printf("Adding tags to project. project %s:%s tags %v", projectName, projectVersion, tags)
+func (dt *DependencyTrack) IsLatest(ctx context.Context, projectName, projectVersion string, updateTimestamp int64) bool {
+	project, err := dt.Client.Project.Lookup(ctx, projectName, projectVersion)
+	if err != nil {
+		return true
+	}
+	return int64(project.LastBOMImport) < updateTimestamp
+}
+
+func (dt *DependencyTrack) AddTagsToProject(ctx context.Context, projectName, projectVersion string, tags []string, namespace string, serviceName string) error {
+	log.Printf("Adding tags to project. project %s:%s tags %v namespace %s serviceName %s", projectName, projectVersion, tags, namespace, serviceName)
 
 	project, err := dt.Client.Project.Lookup(ctx, projectName, projectVersion)
 	if err != nil {

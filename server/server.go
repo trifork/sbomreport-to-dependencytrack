@@ -33,6 +33,7 @@ func (s *Server) Run() error {
 
 	addr := fmt.Sprintf(":%d", s.port)
 	log.Printf("Listening on %s\n", addr)
+	log.Printf("Health check endpoint: %s/healthz\n", addr)
 	if err := http.ListenAndServe(addr, nil); err != nil {
 		return err
 	}

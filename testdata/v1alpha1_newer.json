@@ -1,0 +1,72 @@
+{
+  "apiVersion": "aquasecurity.github.io/v1alpha1",
+  "kind": "SbomReport",
+  "metadata": {
+    "creationTimestamp": "2024-07-26T14:44:00Z",
+    "generation": 1,
+    "labels": {
+      "resource-spec-hash": "7cb98f59c4",
+      "trivy-operator.container.name": "alpine",
+      "trivy-operator.resource.kind": "Pod",
+      "trivy-operator.resource.name": "alpine",
+      "trivy-operator.resource.namespace": "default"
+    },
+    "name": "pod-alpine-alpine",
+    "namespace": "default",
+    "ownerReferences": [
+      {
+        "apiVersion": "v1",
+        "blockOwnerDeletion": false,
+        "controller": true,
+        "kind": "Pod",
+        "name": "alpine",
+        "uid": "603e0d93-9ca0-474a-bf92-bd4690941aeb"
+      }
+    ],
+    "resourceVersion": "361405987",
+    "uid": "6b855360-1c93-4616-95d9-49171f29919d"
+  },
+  "report": {
+    "artifact": {
+      "digest": "sha256:324bc02ae1231fd9255658c128086395d3fa0aedd5a41ab6b034fd649d1a9260",
+      "repository": "library/alpine",
+      "tag": "latest"
+    },
+    "components": {
+      "bomFormat": "CycloneDX",
+      "components": [],
+      "dependencies": [],
+      "metadata": {
+"component": {
+  "bom-ref": "pkg:oci/alpine@sha256%3A0a4eaa0eecf5f8c050e5bba433f58c052be7587ee8af3e8b3910ef9ab5fbe9f5?arch=amd64repository_url=index.docker.io%2Flibrary%2Falpine",
+  "name": "alpine",
+  "type": "container",
+  "properties": []
+},
+        "timestamp": "2024-07-27T14:44:00+00:00",
+        "tools": [
+          {
+            "name": "trivy",
+            "vendor": "aquasecurity"
+          }
+        ]
+      },
+      "serialNumber": "urn:uuid:506f3173-7e0c-43f1-b0f6-9fdf8f0a3d5d",
+      "specVersion": "1.5",
+      "version": 1
+    },
+    "registry": {
+      "server": "index.docker.io"
+    },
+    "scanner": {
+      "name": "Trivy",
+      "vendor": "Aqua Security",
+      "version": "0.48.1"
+    },
+    "summary": {
+      "componentsCount": 16,
+      "dependenciesCount": 16
+    },
+    "updateTimestamp": "2024-07-27T14:44:00Z"
+  }
+}

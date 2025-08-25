@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"strconv"
 
 	"github.com/takumakume/sbomreport-to-dependencytrack/config"
 	"github.com/takumakume/sbomreport-to-dependencytrack/dependencytrack"
@@ -16,8 +17,9 @@ type Uploader interface {
 }
 
 type Upload struct {
-	dtrack dependencytrack.DependencyTrackClient
-	config *config.Config
+	dtrack           dependencytrack.DependencyTrackClient
+	config           *config.Config
+	latestTimestamps map[string]string // key: composite key, value: latest timestamp
 }
 
 func New(c *config.Config) (*Upload, error) {
@@ -27,8 +29,9 @@ func New(c *config.Config) (*Upload, error) {
 	}
 
 	return &Upload{
-		dtrack: dtrack,
-		config: c,
+		dtrack:           dtrack,
+		config:           c,
+		latestTimestamps: make(map[string]string),
 	}, nil
 }
 
@@ -82,12 +85,18 @@ func (u *Upload) Run(ctx context.Context, input []byte) error {
 		return err
 	}
 
-	if err := u.dtrack.UploadBOM(ctx, projectName, projectVersion, parentName, parentVersion, sbom.BOM()); err != nil {
+	incomingTS, errTS := strconv.ParseInt(sbom.UpdateTimestamp, 10, 64)
+	isLatest := true
+	if errTS == nil {
+		isLatest = u.dtrack.IsLatest(ctx, projectName, projectVersion, incomingTS)
+	}
+
+	if err := u.dtrack.UploadBOM(ctx, projectName, projectVersion, parentName, parentVersion, sbom.BOM(), isLatest, "", ""); err != nil {
 		return err
 	}
 
 	if len(projectTags) > 0 {
-		if err := u.dtrack.AddTagsToProject(ctx, projectName, projectVersion, projectTags); err != nil {
+		if err := u.dtrack.AddTagsToProject(ctx, projectName, projectVersion, projectTags, "", ""); err != nil {
 			return err
 		}
 	}
