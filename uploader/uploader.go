@@ -82,7 +82,7 @@ func (u *Upload) Run(ctx context.Context, input []byte) error {
 		return err
 	}
 
-	if err := u.dtrack.UploadBOM(ctx, projectName, projectVersion, parentName, parentVersion, sbom.BOM()); err != nil {
+	if err := u.dtrack.UploadBOM(ctx, projectName, projectVersion, parentName, parentVersion, sbom.BOM(), sbom.CreateTimestamp()); err != nil {
 		return err
 	}
 

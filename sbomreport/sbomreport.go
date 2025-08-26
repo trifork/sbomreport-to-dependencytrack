@@ -9,9 +9,10 @@ import (
 var ErrNotSBOMReport = errors.New("kind is not SbomReport")
 
 type SbomReport struct {
-	rawJSON []byte
-	bom     []byte
-	verb    string
+	rawJSON         []byte
+	bom             []byte
+	verb            string
+	createTimestamp string
 }
 
 func New(rawJSON []byte) (*SbomReport, error) {
@@ -19,10 +20,22 @@ func New(rawJSON []byte) (*SbomReport, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	timestamp := ""
+	var data map[string]interface{}
+	if err := json.Unmarshal(rawJSON, &data); err != nil {
+		return nil, err
+	}
+	if metadata, ok := data["metadata"].(map[string]interface{}); ok {
+		if ts, ok := metadata["creationTimestamp"].(string); ok {
+			timestamp = ts
+		}
+	}
 	return &SbomReport{
-		rawJSON: rawJSON,
-		verb:    verb,
-		bom:     bom,
+		rawJSON:         rawJSON,
+		verb:            verb,
+		bom:             bom,
+		createTimestamp: timestamp,
 	}, nil
 }
 
@@ -92,4 +105,8 @@ func getBOMAndVerb(rawJSON []byte) ([]byte, string, error) {
 	}
 
 	return jsonBytes, verb, nil
+}
+
+func (s *SbomReport) CreateTimestamp() string {
+	return s.createTimestamp
 }
