@@ -30,7 +30,7 @@
         "artifact": {
             "digest": "sha256:324bc02ae1231fd9255658c128086395d3fa0aedd5a41ab6b034fd649d1a9260",
             "repository": "library/alpine",
-            "tag": "latest-3"
+            "tag": "latest"
         },
         "components": {
             "bomFormat": "CycloneDX",
