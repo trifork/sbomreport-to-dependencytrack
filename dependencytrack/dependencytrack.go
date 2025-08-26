@@ -11,7 +11,7 @@ import (
 )
 
 type DependencyTrackClient interface {
-	UploadBOM(ctx context.Context, projectName, projectVersion string, parentName string, parentVersion string, bom []byte) error
+	UploadBOM(ctx context.Context, projectName, projectVersion string, parentName string, parentVersion string, bom []byte, createTimestamp string) error
 	AddTagsToProject(ctx context.Context, projectName, projectVersion string, tags []string) error
 }
 
@@ -35,8 +35,16 @@ func New(baseURL, apiKey string, dtrackClientTimeout, sbomUploadTimeout, sbomUpl
 	}, nil
 }
 
-func (dt *DependencyTrack) UploadBOM(ctx context.Context, projectName, projectVersion string, parentName string, parentVersion string, bom []byte) error {
+func (dt *DependencyTrack) UploadBOM(ctx context.Context, projectName, projectVersion string, parentName string, parentVersion string, bom []byte, createTimestamp string) error {
 	log.Printf("Uploading BOM: project %s:%s", projectName, projectVersion)
+
+	ts := time.Now().Format(time.RFC3339)
+
+	// latest := true
+	latest, err := dt.IsLatest(ctx, projectName, projectVersion, ts)
+	if err != nil {
+		return err
+	}
 
 	uploadToken, err := dt.Client.BOM.Upload(ctx, dtrack.BOMUploadRequest{
 		ProjectName:    projectName,
@@ -45,7 +53,9 @@ func (dt *DependencyTrack) UploadBOM(ctx context.Context, projectName, projectVe
 		ParentVersion:  parentVersion,
 		AutoCreate:     true,
 		BOM:            base64.StdEncoding.EncodeToString(bom),
+		IsLatest:       &latest,
 	})
+	log.Printf("Upload BOM: latest: %v", latest)
 	if err != nil {
 		return err
 	}
@@ -116,4 +126,40 @@ func (dt *DependencyTrack) AddTagsToProject(ctx context.Context, projectName, pr
 	}
 
 	return nil
+}
+
+func (dt *DependencyTrack) IsLatest(ctx context.Context, projectName, projectVersion string, creationTimestamp string) (bool, error) {
+	log.Printf("Checking if the BOM is the latest. project %s:%s creationTimestamp %s", projectName, projectVersion, creationTimestamp)
+	// Parse creationTimestamp from JSON
+	ts, err := time.Parse(time.RFC3339, creationTimestamp)
+	if err != nil {
+		return false, fmt.Errorf("invalid creationTimestamp: %w", err)
+	}
+
+	// Fetch the latest project info from Dependency-Track
+	project, err := dt.Client.Project.Latest(ctx, projectName)
+	if err != nil {
+		log.Printf("No existing project found, treating as latest: %v", err)
+		// If no latest exists, treat this version as latest
+		return true, nil
+	}
+
+	// If the version matches the latest, it’s obviously latest
+	if project.Version == projectVersion {
+		log.Printf("Project version: %v matches the latest version in Dependency-Track.", projectVersion)
+		return true, nil
+	}
+
+	// Compare timestamps: LastBOMImport is in milliseconds
+	latestBOMTime := time.UnixMilli(int64(project.LastBOMImport))
+	log.Printf("LatestBOMTime: %v, Incoming BOM creationTimestamp: %v", latestBOMTime, ts)
+
+	// If the incoming BOM is newer than the stored latest, mark it as latest
+	if ts.After(latestBOMTime) {
+		log.Printf("Incoming BOM creationTimestamp %v is newer than the latest in Dependency-Track %v.", ts, latestBOMTime)
+		return true, nil
+	}
+
+	log.Printf("Did not hit any conditions, treating as not latest.")
+	return false, nil
 }

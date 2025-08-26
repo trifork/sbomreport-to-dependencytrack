@@ -2,7 +2,7 @@
     "apiVersion": "aquasecurity.github.io/v1alpha1",
     "kind": "SbomReport",
     "metadata": {
-        "creationTimestamp": "2024-07-26T14:44:00Z",
+        "creationTimestamp": "2024-07-29T14:44:00Z",
         "generation": 1,
         "labels": {
             "resource-spec-hash": "7cb98f59c4",
